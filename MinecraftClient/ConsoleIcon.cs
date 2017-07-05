@@ -7,7 +7,6 @@ using System.Threading;
 using System.Net;
 using System.IO;
 using System.Drawing;
-using System.Windows.Forms;
 
 namespace MinecraftClient
 {
@@ -27,6 +26,7 @@ namespace MinecraftClient
 
         public static void setPlayerIconAsync(string playerName)
         {
+#if !NETCOREAPP2_0
             if (!Program.isUsingMono) //Windows Only
             {
                 Thread t = new Thread(new ThreadStart(delegate
@@ -49,7 +49,7 @@ namespace MinecraftClient
                     {
                         try
                         {
-                            SetConsoleIcon(Icon.ExtractAssociatedIcon(Application.ExecutablePath).Handle);
+                            SetConsoleIcon(Icon.ExtractAssociatedIcon(System.Windows.Forms.Application.ExecutablePath).Handle);
                         }
                         catch { }
                     }
@@ -58,6 +58,7 @@ namespace MinecraftClient
                 t.Name = "Player skin icon setter";
                 t.Start();
             }
+#endif
         }
 
         /// <summary>
@@ -66,6 +67,7 @@ namespace MinecraftClient
 
         public static void revertToCMDIcon()
         {
+#if !NETCOREAPP2_0
             if (!Program.isUsingMono) //Windows Only
             {
                 try
@@ -74,6 +76,7 @@ namespace MinecraftClient
                 }
                 catch { }
             }
+#endif
         }
     }
 }

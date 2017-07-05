@@ -24,6 +24,7 @@ namespace MinecraftClient
         public const string MCLowestVersion = "1.4.6";
         public const string MCHighestVersion = "1.12.0";
 
+        private static CancellationTokenSource offlinePromptToken;
         private static Thread offlinePrompt = null;
         private static bool useMcVersionOnce = false;
 
@@ -281,7 +282,7 @@ namespace MinecraftClient
             new Thread(new ThreadStart(delegate
             {
                 if (Client != null) { Client.Disconnect(); ConsoleIO.Reset(); }
-                if (offlinePrompt != null) { offlinePrompt.Abort(); offlinePrompt = null; ConsoleIO.Reset(); }
+                if (offlinePrompt != null) { offlinePromptToken.Cancel(); offlinePrompt = null; ConsoleIO.Reset(); }
                 if (delaySeconds > 0)
                 {
                     Console.WriteLine("Waiting " + delaySeconds + " seconds before restarting...");
@@ -300,7 +301,7 @@ namespace MinecraftClient
             new Thread(new ThreadStart(delegate
             {
                 if (Client != null) { Client.Disconnect(); ConsoleIO.Reset(); }
-                if (offlinePrompt != null) { offlinePrompt.Abort(); offlinePrompt = null; ConsoleIO.Reset(); }
+                if (offlinePrompt != null) { offlinePromptToken.Cancel(); offlinePrompt = null; ConsoleIO.Reset(); }
                 if (Settings.playerHeadAsIcon) { ConsoleIcon.revertToCMDIcon(); }
                 Environment.Exit(0);
             })).Start();
@@ -345,12 +346,13 @@ namespace MinecraftClient
 
                 if (offlinePrompt == null)
                 {
+                    offlinePromptToken = new CancellationTokenSource();
                     offlinePrompt = new Thread(new ThreadStart(delegate
                     {
                         string command = " ";
                         ConsoleIO.WriteLineFormatted("Not connected to any server. Use '" + (Settings.internalCmdChar == ' ' ? "" : "" + Settings.internalCmdChar) + "help' for help.");
                         ConsoleIO.WriteLineFormatted("Or press Enter to exit Minecraft Console Client.");
-                        while (command.Length > 0)
+                        while (!offlinePromptToken.IsCancellationRequested && command.Length > 0)
                         {
                             if (!ConsoleIO.basicIO) { ConsoleIO.Write('>'); }
                             command = Console.ReadLine().Trim();

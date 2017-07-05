@@ -7,9 +7,6 @@ using System.Net.Sockets;
 
 using System.Net.NetworkInformation;
 
-using System.Diagnostics;
-using System.Runtime.Remoting.Messaging;
-
 
 /*
  * Network Working Group                                     P. Mockapetris
@@ -693,9 +690,13 @@ namespace Heijden.DNS
 		/// <returns></returns>
 		public IPAddress[] EndGetHostAddresses(IAsyncResult AsyncResult)
 		{
-			AsyncResult aResult = (AsyncResult)AsyncResult;
+#if !NETCOREAPP2_0
+		    System.Runtime.Remoting.Messaging.AsyncResult aResult = (System.Runtime.Remoting.Messaging.AsyncResult)AsyncResult;
 			GetHostAddressesDelegate g = (GetHostAddressesDelegate)aResult.AsyncDelegate;
 			return g.EndInvoke(AsyncResult);
+#else
+		    return new IPAddress[0];
+#endif
 		}
 
 		/// <summary>
@@ -756,9 +757,13 @@ namespace Heijden.DNS
 		/// <returns></returns>
 		public IPHostEntry EndGetHostByName(IAsyncResult AsyncResult)
 		{
-			AsyncResult aResult = (AsyncResult)AsyncResult;
+#if !NETCOREAPP2_0
+		    System.Runtime.Remoting.Messaging.AsyncResult aResult = (System.Runtime.Remoting.Messaging.AsyncResult)AsyncResult;
 			GetHostByNameDelegate g = (GetHostByNameDelegate)aResult.AsyncDelegate;
 			return g.EndInvoke(AsyncResult);
+#else
+		    return new IPHostEntry();
+#endif
 		}
 
 		/// <summary>
@@ -804,11 +809,15 @@ namespace Heijden.DNS
 		/// <returns>An System.Net.IPHostEntry object that contains DNS information about a host.</returns>
 		public IPHostEntry EndResolve(IAsyncResult AsyncResult)
 		{
-			AsyncResult aResult = (AsyncResult)AsyncResult;
+#if !NETCOREAPP2_0
+		    System.Runtime.Remoting.Messaging.AsyncResult aResult = (System.Runtime.Remoting.Messaging.AsyncResult)AsyncResult;
 			ResolveDelegate g = (ResolveDelegate)aResult.AsyncDelegate;
 			return g.EndInvoke(AsyncResult);
+#else
+            return new IPHostEntry();
+#endif
 		}
-		#endregion
+#endregion
 
 		/// <summary>
 		///		Resolves an IP address to an System.Net.IPHostEntry instance.
@@ -898,7 +907,8 @@ namespace Heijden.DNS
 		///</returns>
 		public IPHostEntry EndGetHostEntry(IAsyncResult AsyncResult)
 		{
-			AsyncResult aResult = (AsyncResult)AsyncResult;
+#if !NETCOREAPP2_0
+		    System.Runtime.Remoting.Messaging.AsyncResult aResult = (System.Runtime.Remoting.Messaging.AsyncResult)AsyncResult;
 			if (aResult.AsyncDelegate is GetHostEntryDelegate)
 			{
 				GetHostEntryDelegate g = (GetHostEntryDelegate)aResult.AsyncDelegate;
@@ -910,6 +920,9 @@ namespace Heijden.DNS
 				return g.EndInvoke(AsyncResult);
 			}
 			return null;
+#else
+            return new IPHostEntry();
+#endif
 		}
 
 		private enum RRRecordStatus

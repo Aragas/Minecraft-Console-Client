@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Windows.Forms;
 using System.Threading;
 
 namespace MinecraftClient
@@ -420,12 +419,13 @@ namespace MinecraftClient
         private static string ReadClipboard()
         {
             string clipdata = "";
+#if !NETCOREAPP2_0
             Thread staThread = new Thread(new ThreadStart(
                 delegate
                 {
                     try
                     {
-                        clipdata = Clipboard.GetText();
+                        clipdata = System.Windows.Forms.Clipboard.GetText();
                     }
                     catch { }
                 }
@@ -433,6 +433,7 @@ namespace MinecraftClient
             staThread.SetApartmentState(ApartmentState.STA);
             staThread.Start();
             staThread.Join();
+#endif
             return clipdata;
         }
         #endregion

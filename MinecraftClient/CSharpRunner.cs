@@ -16,6 +16,7 @@ namespace MinecraftClient
     /// </summary>
     class CSharpRunner
     {
+#if !NETCOREAPP2_0
         private static readonly Dictionary<ulong, Assembly> CompileCache = new Dictionary<ulong, Assembly>();
 
         /// <summary>
@@ -131,6 +132,105 @@ namespace MinecraftClient
             }
             else return null;
         }
+#else
+        private static readonly Dictionary<ulong, Microsoft.CodeAnalysis.Scripting.Script> CompileCache = new Dictionary<ulong, Microsoft.CodeAnalysis.Scripting.Script>();
+
+        /// <summary>
+        /// Run the specified C# script file
+        /// </summary>
+        /// <param name="apiHandler">ChatBot handler for accessing ChatBot API</param>
+        /// <param name="tickHandler">Tick handler for waiting after some API calls</param>
+        /// <param name="lines">Lines of the script file to run</param>
+        /// <param name="args">Arguments to pass to the script</param>
+        /// <param name="run">Set to false to compile and cache the script without launching it</param>
+        /// <exception cref="CSharpException">Thrown if an error occured</exception>
+        /// <returns>Result of the execution, returned by the script</returns>
+        public static object Run(ChatBot apiHandler, ManualResetEvent tickHandler, string[] lines, string[] args, bool run = true)
+        {
+ //Script compatibility check for handling future versions differently
+            if (lines.Length < 1 || lines[0] != "//MCCScript 1.0")
+                throw new CSharpException(CSErrorType.InvalidScript,
+                    new InvalidDataException("The provided script does not have a valid MCCScript header"));
+
+            //Script hash for determining if it was previously compiled
+            ulong scriptHash = QuickHash(lines);
+            Microsoft.CodeAnalysis.Scripting.Script sharpScript = null;
+
+            //No need to compile two scripts at the same time
+            lock (CompileCache)
+            {
+                ///Process and compile script only if not already compiled
+                if (!Settings.CacheScripts || !CompileCache.ContainsKey(scriptHash))
+                {
+                    //Process different sections of the script file
+                    bool scriptMain = true;
+                    List<string> script = new List<string>();
+                    List<string> extensions = new List<string>();
+                    foreach (string line in lines)
+                    {
+                        if (line.StartsWith("//MCCScript"))
+                        {
+                            if (line.EndsWith("Extensions"))
+                                scriptMain = false;
+                        }
+                        else if (scriptMain)
+                            script.Add(line);
+                        else extensions.Add(line);
+                    }
+
+                    //Add return statement if missing
+                    if (script.All(line => !line.StartsWith("return ") && !line.Contains(" return ")))
+                        script.Add("return null;");
+
+                    //Generate a class from the given script
+                    string code = String.Join("\n", new string[]
+                    {
+                        "using System;",
+                        "using System.Collections.Generic;",
+                        "using System.Text.RegularExpressions;",
+                        "using System.Linq;",
+                        "using System.Text;",
+                        "using System.IO;",
+                        "using System.Threading;",
+                        "using MinecraftClient;",
+                        "using MinecraftClient.Mapping;",
+                            String.Join("\n", script),
+                            String.Join("\n", extensions),
+                    });
+
+                    sharpScript = Microsoft.CodeAnalysis.CSharp.Scripting.CSharpScript.Create(code,
+                        Microsoft.CodeAnalysis.Scripting.ScriptOptions.Default.WithReferences(AppDomain.CurrentDomain
+                            .GetAssemblies()
+                            .Where(a => !a.IsDynamic)
+                            .Select(a => a.Location).ToArray()), typeof(Globals));
+
+                    //Process compile warnings and errors
+                    System.Collections.Immutable.ImmutableArray<Microsoft.CodeAnalysis.Diagnostic> result = sharpScript.Compile();
+                    if (result.Length > 0)
+                        throw new CSharpException(CSErrorType.LoadError, new InvalidOperationException(result[0].GetMessage()));
+
+
+                    if (Settings.CacheScripts)
+                        CompileCache[scriptHash] = sharpScript;
+                }
+                else if (Settings.CacheScripts)
+                    sharpScript = CompileCache[scriptHash];
+            }
+
+            //Run the compiled assembly with exception handling
+            if (run)
+            {
+                try
+                {
+                    return sharpScript.RunAsync(new Globals(new CSharpAPI(apiHandler, tickHandler), args)).GetAwaiter().GetResult().ReturnValue;
+                }
+                catch (Exception e) { throw new CSharpException(CSErrorType.RuntimeError, e); }
+            }
+            else return null;
+        }
+#endif
+
+
 
         /// <summary>
         /// Quickly calculate a hash for the given script
