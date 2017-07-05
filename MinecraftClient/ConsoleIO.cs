@@ -433,6 +433,8 @@ namespace MinecraftClient
             staThread.SetApartmentState(ApartmentState.STA);
             staThread.Start();
             staThread.Join();
+#else
+            return PInvoke.GetClipboard();
 #endif
             return clipdata;
         }
